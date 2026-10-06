@@ -25,7 +25,22 @@ func has_damaged_props()->bool:
     for prop in props_root.get_children():
         if prop.has_method("is_damaged") and prop.is_damaged():return true
     return false
-func set_world_state(key:String,value)->void:world_state[key]=value
+func has_damaged_props_near(pos:Vector3,radius:float)->bool:
+    for prop in props_root.get_children():
+        if prop.has_method("is_damaged") and prop.is_damaged() and prop.global_position.distance_to(pos)<=radius:return true
+    return false
+func set_world_state(key:String,value)->bool:
+    if key=="light":
+        var sun:DirectionalLight3D=$Sun
+        match String(value):
+            "sky/ambient_dawn":sun.light_color=Color(1.0,0.72,0.5);sun.light_energy=0.65
+            "sky/storm":sun.light_color=Color(0.48,0.56,0.8);sun.light_energy=0.3
+            _:return false
+    elif key=="sound":
+        # No sound assets/player are supplied yet. Do not claim playback.
+        return false
+    world_state[key]=value
+    return true
 func _get_random_prop():
     var c:=props_root.get_child_count()
     if c==0:return null
