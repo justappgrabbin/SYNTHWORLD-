@@ -20,3 +20,9 @@ static func parse_position(value:String)->Vector3:
     var parts:=value.strip_edges().trim_prefix("(").trim_suffix(")").split(",")
     if parts.size()!=3:return Vector3.ZERO
     return Vector3(float(parts[0]),float(parts[1]),float(parts[2]))
+static func valid_position(value:String)->bool:
+    var parts:=value.strip_edges().trim_prefix("(").trim_suffix(")").split(",")
+    if parts.size()!=3:return false
+    for part in parts:
+        if not part.strip_edges().is_valid_float() or not is_finite(float(part)):return false
+    return true
