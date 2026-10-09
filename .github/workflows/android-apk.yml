@@ -16,14 +16,17 @@ jobs:
       - name: Checkout SynthWorld
         uses: actions/checkout@v4
 
-      - name: Install Android export templates
+      - name: Install Godot Android export settings
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
-          if [ -d /root/.local/share/godot/export_templates/4.3.stable ]; then
-            cp -a /root/.local/share/godot/export_templates/4.3.stable/. "$HOME/.local/share/godot/export_templates/4.3.stable/"
-          fi
+          mkdir -p "$HOME/.local/share/godot/export_templates" "$HOME/.config"
+          rm -rf "$HOME/.config/godot"
+          cp -a /root/.config/godot "$HOME/.config/godot"
+          rm -rf "$HOME/.local/share/godot/export_templates/4.3.stable"
+          cp -a /root/.local/share/godot/export_templates/4.3.stable "$HOME/.local/share/godot/export_templates/4.3.stable"
+          test -s /root/debug.keystore
+          grep -n 'export/android' "$HOME/.config/godot/editor_settings-4.3.tres"
 
       - name: Validate Godot project
         working-directory: game
