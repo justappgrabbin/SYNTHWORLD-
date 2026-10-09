@@ -9,6 +9,7 @@ BehaviorService="*res://Scripts/Systems/BehaviorService.gd"
 NudgeSystem="*res://Scripts/Systems/NudgeSystem.gd"
 TraitSystem="*res://Scripts/Systems/TraitSystem.gd"
 SentenceService="*res://Scripts/Systems/SentenceService.gd"
+WholeComputerBridge="*res://Scripts/Systems/WholeComputerBridge.gd"
 
 [rendering]
 renderer/rendering_method="gl_compatibility"
