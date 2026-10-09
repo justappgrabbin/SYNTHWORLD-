@@ -26,6 +26,7 @@ jobs:
           rm -rf "$HOME/.local/share/godot/export_templates/4.3.stable"
           cp -a /root/.local/share/godot/export_templates/4.3.stable "$HOME/.local/share/godot/export_templates/4.3.stable"
           test -s /root/debug.keystore
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
           grep -n 'export/android' "$HOME/.config/godot/editor_settings-4.3.tres"
 
       - name: Validate Godot project
@@ -41,7 +42,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ../build
-          godot --headless --export-debug "Android" ../build/SynthWorld-321.apk
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH=/root/debug.keystore \
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey \
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android \
+          godot --headless --verbose --export-debug "Android" ../build/SynthWorld-321.apk
           test -s ../build/SynthWorld-321.apk
 
       - name: Upload SynthWorld APK
