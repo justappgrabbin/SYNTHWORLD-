@@ -1,9 +1,11 @@
-name: Build SynthWorld APK
+name: Build SynthWorld 321 APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - synthia-whole-computer-v1-apk
 
 jobs:
   android:
@@ -13,19 +15,36 @@ jobs:
     steps:
       - name: Checkout SynthWorld
         uses: actions/checkout@v4
+
       - name: Install Android export templates
+        shell: bash
         run: |
-          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
-          cp -r /root/.local/share/godot/export_templates/4.3.stable/* ~/.local/share/godot/export_templates/4.3.stable/ || true
-      - name: Build APK
+          set -euo pipefail
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
+          if [ -d /root/.local/share/godot/export_templates/4.3.stable ]; then
+            cp -a /root/.local/share/godot/export_templates/4.3.stable/. "$HOME/.local/share/godot/export_templates/4.3.stable/"
+          fi
+
+      - name: Validate Godot project
         working-directory: game
+        shell: bash
         run: |
-          mkdir -p ../build
+          set -euo pipefail
           godot --headless --editor --quit
-          godot --headless --export-debug "Android" ../build/SynthWorld.apk
-      - name: Upload APK
+
+      - name: Build Android APK
+        working-directory: game
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ../build
+          godot --headless --export-debug "Android" ../build/SynthWorld-321.apk
+          test -s ../build/SynthWorld-321.apk
+
+      - name: Upload SynthWorld APK
         uses: actions/upload-artifact@v4
         with:
-          name: SynthWorld-APK
-          path: build/SynthWorld.apk
+          name: SynthWorld-321-APK
+          path: build/SynthWorld-321.apk
           if-no-files-found: error
+          retention-days: 30
