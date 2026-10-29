@@ -3,7 +3,7 @@ name: Build SynthWorld APK
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main, codex/living-agents-scene-notes]
 
 jobs:
   android:
@@ -11,20 +11,25 @@ jobs:
     container:
       image: barichello/godot-ci:4.3
     steps:
-      - name: Checkout SynthWorld
-        uses: actions/checkout@v4
-      - name: Install Android export templates
+      - uses: actions/checkout@v4
+      - name: Prepare native build tools
         run: |
-          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
-          cp -r /root/.local/share/godot/export_templates/4.3.stable/* ~/.local/share/godot/export_templates/4.3.stable/ || true
+          apt-get update
+          apt-get install -y cmake ninja-build python3 git curl
+          sdkmanager 'ndk;26.3.11579264'
+      - name: Build resident AI and verify bundled model
+        run: |
+          python3 tools/prepare_resident_ai.py --target both --ndk "$ANDROID_HOME/ndk/26.3.11579264" --jobs 4
+      - name: Import and test game and real model inference
+        run: |
+          godot --headless --path game --editor --quit
+          XDG_DATA_HOME=/tmp/synthworld-game-test godot --headless --path game --script res://Tests/Integration.gd
+          XDG_DATA_HOME=/tmp/synthworld-ai-test godot --headless --path game --script res://Tests/ResidentTheme.gd
       - name: Build APK
-        working-directory: game
         run: |
-          mkdir -p ../build
-          godot --headless --editor --quit
-          godot --headless --export-debug "Android" ../build/SynthWorld.apk
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+          mkdir -p build
+          godot --headless --path game --export-debug Android ../build/SynthWorld.apk
+      - uses: actions/upload-artifact@v4
         with:
           name: SynthWorld-APK
           path: build/SynthWorld.apk

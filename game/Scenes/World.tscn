@@ -1,5 +1,5 @@
 
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Systems/World.gd" id=1]
 [ext_resource type="PackedScene" path="res://Scenes/Agents/Cynthia.tscn" id=2]
@@ -7,6 +7,19 @@
 
 [sub_resource type="PlaneMesh" id=1]
 size = Vector2(200, 200)
+
+[sub_resource type="BoxShape3D" id="floor_shape"]
+size = Vector3(200, 0.1, 200)
+
+[sub_resource type="StandardMaterial3D" id="ground_mat"]
+albedo_color = Color(0.08, 0.23, 0.21, 1)
+
+[sub_resource type="Environment" id="env"]
+background_mode = 1
+background_color = Color(0.055, 0.075, 0.14, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.6, 0.65, 0.85, 1)
+ambient_light_energy = 0.5
 
 [node name="World" type="Node3D"]
 script = ExtResource( 1 )
@@ -22,7 +35,17 @@ current = true
 
 [node name="Ground" type="MeshInstance3D" parent="."]
 mesh = SubResource( 1 )
+material_override = SubResource("ground_mat")
 
 [node name="Props" type="Node3D" parent="."]
 
 [node name="Cynthia" parent="." instance=ExtResource( 2 )]
+
+[node name="Floor" type="StaticBody3D" parent="."]
+
+[node name="Collider" type="CollisionShape3D" parent="Floor"]
+position = Vector3(0, -0.05, 0)
+shape = SubResource("floor_shape")
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")

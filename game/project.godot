@@ -2,6 +2,7 @@ config_version=5
 
 [application]
 config/name="SynthWorld"
+config/icon="res://icon.svg"
 run/main_scene="res://Scenes/Intro.tscn"
 
 [autoload]
@@ -11,6 +12,13 @@ TraitSystem="*res://Scripts/Systems/TraitSystem.gd"
 SentenceService="*res://Scripts/Systems/SentenceService.gd"
 
 [rendering]
+textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 environment/defaults/default_clear_color=Color(0.2, 0.23, 0.27, 1.0)
+
+[display]
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/stretch/mode="canvas_items"
+window/handheld/orientation=1

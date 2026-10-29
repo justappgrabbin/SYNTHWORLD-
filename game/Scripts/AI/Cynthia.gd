@@ -6,6 +6,10 @@ const SCAN_PERIOD:=0.5
 const PACKAGED_BUILD_QUEUE:="res://data/commands/build.json"
 const RUNTIME_BUILD_QUEUE:="user://build.json"
 @onready var trait_comp:=$Traits
+var current_action := "Caring for the grove"
+var scene_note := ""
+var scene_priority := "Build"
+var memories: Array[String] = []
 var _scan_accum:=0.0
 var _target_pos:=Vector3.ZERO
 var _has_target:=false
@@ -13,13 +17,26 @@ var rng:=RandomNumberGenerator.new()
 func _ready()->void:
     rng.randomize(); global_transform.origin=Vector3.ZERO; _load_traits_for_cynthia(); _ensure_runtime_build_queue()
 func _physics_process(delta:float)->void:
+    if scene_priority == "Rest":
+        velocity = Vector3.ZERO
+        current_action = "Resting with you"
+        return
     var speed=BASE_SPEED*trait_comp.get_stat_mult("speedMult")
     if _has_target:
         var to=(_target_pos-global_transform.origin)
         if to.length()>0.1:velocity=to.normalized()*speed
         else:velocity=Vector3.ZERO;_has_target=false
     elif rng.randf()<0.01:_target_pos=global_transform.origin+Vector3(rng.randf_range(-3,3),0,rng.randf_range(-3,3));_has_target=true
+    if position.length() > 10.0:
+        _target_pos = Vector3.ZERO
+        _has_target = true
     move_and_slide()
+    if scene_priority == "Socialize":
+        current_action = "Connecting with the group"
+        _target_pos = Vector3(-2, 0, 0)
+        _has_target = global_position.distance_to(_target_pos) > 1.0
+        return
+    current_action = "Exploring" if scene_priority == "Wander" else "Building / repairing"
     _scan_accum+=delta
     if _scan_accum>=SCAN_PERIOD:
         _scan_accum=0.0
@@ -61,3 +78,15 @@ func _load_traits_for_cynthia()->void:
         var arr=JSON.parse_string(FileAccess.get_file_as_string(path))
         if typeof(arr)==TYPE_ARRAY:trait_comp.set_traits(arr)
 func set_target(pos:Vector3)->void:_target_pos=pos;_has_target=true
+
+func receive_scene(note: String, priority: String, new_order: bool = true) -> void:
+    scene_note = note
+    scene_priority = priority
+    memories.append(note)
+    if priority == "Build" and new_order:
+        var orders: Array = []
+        var data = JSON.parse_string(FileAccess.get_file_as_string(RUNTIME_BUILD_QUEUE))
+        if data is Array: orders = data
+        orders.append({"cmd": "place_tree", "pos": [rng.randf_range(-6, 6), 0, rng.randf_range(-6, 6)]})
+        var file := FileAccess.open(RUNTIME_BUILD_QUEUE, FileAccess.WRITE)
+        if file: file.store_string(JSON.stringify(orders))
