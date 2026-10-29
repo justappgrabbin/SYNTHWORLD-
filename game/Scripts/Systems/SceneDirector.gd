@@ -2,7 +2,7 @@ extends Node
 
 const SAVE_PATH := "user://synthworld-save.json"
 const CATEGORIES := ["identity", "purpose", "connection", "strength", "dream"]
-var state: Dictionary = {"note": "", "place": 0, "time": 0, "situation": 0, "fragments": [], "gnomes": [], "friends": [], "journal": []}
+var state: Dictionary = {"note": "", "place": 0, "time": 0, "situation": 0, "fragments": [], "gnomes": [], "friends": [], "journal": [], "theme": {}, "theme_wish": ""}
 var world: Node3D
 var panel: PanelContainer
 var notes: TextEdit
@@ -15,6 +15,11 @@ var status: Label
 var inventory: Label
 var journal: RichTextLabel
 var agent_status: Label
+var resident: Node
+var ai_wish: TextEdit
+var ai_status: Label
+var ai_button: Button
+var root_ui: Control
 var save_error := ""
 var tick := 0.0
 
@@ -24,10 +29,20 @@ func _ready() -> void:
         var loaded = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
         if loaded is Dictionary:
             for key in state:
-                if loaded.has(key) and typeof(loaded[key]) == typeof(state[key]):
+                if not loaded.has(key): continue
+                if typeof(state[key]) == TYPE_INT and (loaded[key] is int or loaded[key] is float):
+                    state[key] = int(loaded[key])
+                elif typeof(loaded[key]) == typeof(state[key]):
                     state[key] = loaded[key]
+    resident = Node.new()
+    resident.set_script(preload("res://Scripts/Systems/ResidentThemeAI.gd"))
+    add_child(resident)
     _ui()
-    _apply_scene(false)
+    resident.status_changed.connect(_ai_status_changed)
+    resident.theme_ready.connect(_theme_from_ai)
+    _apply_scene(false, false)
+    if preload("res://Scripts/Systems/ResidentThemeAI.gd").valid_settings(state.theme):
+        _apply_palette(state.theme.palette)
     for friend in state.friends:
         _spawn_friend(str(friend.name))
     _refresh()
@@ -46,6 +61,7 @@ func _ui() -> void:
     var canvas := CanvasLayer.new()
     add_child(canvas)
     var root := Control.new()
+    root_ui = root
     root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     root.mouse_filter = Control.MOUSE_FILTER_IGNORE
     canvas.add_child(root)
@@ -88,6 +104,25 @@ func _ui() -> void:
     var tabs := TabContainer.new()
     tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
     outer.add_child(tabs)
+    var ai_box := _tab(tabs, "Resident AI")
+    _label(ai_box, "Cynthia · local theme designer")
+    _label(ai_box, "Tell Cynthia how you want this world to look and feel. She can choose colors, clothing, place, lighting and what everyone does. Works offline.")
+    ai_wish = TextEdit.new()
+    ai_wish.custom_minimum_size.y = 140
+    ai_wish.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+    ai_wish.placeholder_text = "A pink and teal magical grove at night where we can rest together…"
+    ai_wish.text = state.theme_wish
+    ai_box.add_child(ai_wish)
+    ai_button = Button.new()
+    ai_button.text = "Let Cynthia set up the theme"
+    ai_button.custom_minimum_size.y = 56
+    ai_button.pressed.connect(func():
+        resident.request_theme(ai_wish.text, notes.text)
+        ai_button.disabled = resident.busy)
+    ai_box.add_child(ai_button)
+    _button(ai_box, "Cancel theme generation", func(): resident.cancel())
+    ai_status = _label(ai_box, "Local AI ready. First use prepares its model; the game stays usable while it works.")
+    _label(ai_box, "Available palettes: pink + teal, forest, ocean, sunset, violet and monochrome. You can also change place/time/activity directly in Scene notes.")
     var scene_box := _tab(tabs, "Scene notes")
     _label(scene_box, "Tell your agent what is happening. Your exact words stay in its scene context.")
     notes = TextEdit.new()
@@ -159,7 +194,7 @@ func _choice(box: Node, title: String, options: Array) -> OptionButton:
     box.add_child(choice)
     return choice
 
-func _apply_scene(record: bool) -> void:
+func _apply_scene(record: bool, interpret_note: bool = true) -> void:
     state.note = notes.text.strip_edges().left(8000)
     state.place = place.selected
     state.time = time_choice.selected
@@ -176,7 +211,7 @@ func _apply_scene(record: bool) -> void:
         matched.append(word)
         var intent: String = {"rest":"Rest", "quiet":"Rest", "socialize":"Socialize", "connect":"Socialize", "explore":"Wander", "repair":"Build", "build":"Build"}[word]
         if not intents.has(intent): intents.append(intent)
-    if intents.size() == 1:
+    if interpret_note and intents.size() == 1:
         priority = intents[0]
     world.set_world_state("scene.note", state.note)
     world.set_world_state("scene.priority", priority)
@@ -238,6 +273,8 @@ func _spawn_friend(friend_name: String) -> void:
     world.add_child(actor)
     actor.position = Vector3(2 + state.friends.size(), 0, 2)
     actor.receive_scene(state.note, world.world_state.get("scene.priority", "Wander"))
+    if state.theme.has("palette"):
+        _reskin_actor(actor, state.theme.palette)
 
 func _record(value: String) -> void:
     state.journal.append({"at": Time.get_datetime_string_from_system(), "text": value})
@@ -262,3 +299,65 @@ func _rotate_camera(direction: int) -> void:
     var camera: Camera3D = world.get_node("Camera3D")
     camera.position = camera.position.rotated(Vector3.UP, direction * PI / 6)
     camera.look_at(Vector3(0, 0.8, 0))
+
+func _ai_status_changed(message: String) -> void:
+    ai_status.text = message
+    ai_button.disabled = resident.busy
+
+func _theme_from_ai(settings: Dictionary) -> void:
+    state.theme = settings.duplicate(true)
+    state.theme_wish = ai_wish.text.strip_edges().left(600)
+    place.selected = ["grove", "home", "gathering"].find(settings.place)
+    time_choice.selected = ["day", "evening", "night"].find(settings.time)
+    situation.selected = ["explore", "rest", "socialize", "build"].find(settings.activity)
+    _apply_scene(true, false)
+    _apply_palette(settings.palette)
+    _record("Resident AI theme: %s\nRequested: %s" % [JSON.stringify(settings), state.theme_wish])
+    _save()
+    _refresh()
+
+func _palette(palette: String) -> Array:
+    return {
+        "pink_teal": [Color("203c42"), Color("f175bd"), Color("31d4bf")],
+        "forest": [Color("183b2c"), Color("dfb672"), Color("78c886")],
+        "ocean": [Color("123653"), Color("71c9ed"), Color("54e0ce")],
+        "sunset": [Color("483342"), Color("f99b68"), Color("dc6eab")],
+        "violet": [Color("29223f"), Color("b499ed"), Color("ef9acb")],
+        "monochrome": [Color("25272b"), Color("eeeeee"), Color("9fa6b2")]
+    }.get(palette, [Color("203c42"), Color("f175bd"), Color("31d4bf")])
+
+func _apply_palette(palette: String) -> void:
+    var colors := _palette(palette)
+    var material: StandardMaterial3D = world.get_node("Ground").material_override
+    world.create_tween().tween_property(material, "albedo_color", colors[0], 0.7)
+    var ui_theme := Theme.new()
+    ui_theme.default_font_size = 20
+    var panel_style := StyleBoxFlat.new()
+    panel_style.bg_color = colors[0].darkened(0.45)
+    panel_style.content_margin_left = 14
+    panel_style.content_margin_right = 14
+    panel_style.content_margin_top = 12
+    panel_style.content_margin_bottom = 12
+    ui_theme.set_stylebox("panel", "PanelContainer", panel_style)
+    var button_style := StyleBoxFlat.new()
+    button_style.bg_color = colors[0].lightened(0.12)
+    button_style.corner_radius_top_left = 8
+    button_style.corner_radius_top_right = 8
+    button_style.corner_radius_bottom_left = 8
+    button_style.corner_radius_bottom_right = 8
+    for type_name in ["Button", "OptionButton"]:
+        ui_theme.set_stylebox("normal", type_name, button_style)
+        var active := button_style.duplicate()
+        active.bg_color = colors[2].darkened(0.5)
+        ui_theme.set_stylebox("hover", type_name, active)
+        ui_theme.set_stylebox("pressed", type_name, active)
+    root_ui.theme = ui_theme
+    for actor in world.get_children():
+        _reskin_actor(actor, palette)
+    world.set_world_state("theme.palette", palette)
+
+func _reskin_actor(actor: Node, palette: String) -> void:
+    var body := actor.get_node_or_null("HumanBody")
+    if body and body.has_method("reskin"):
+        var colors := _palette(palette)
+        body.reskin(colors[1] if actor.name == "Cynthia" else colors[2])

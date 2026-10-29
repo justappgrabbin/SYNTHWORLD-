@@ -2,12 +2,15 @@ extends Node3D
 
 var limbs: Array[Node3D] = []
 var phase := 0.0
+var clothing_color := Color.WHITE
+var clothing_materials: Array[StandardMaterial3D] = []
 var actor: CharacterBody3D
 
 func _ready() -> void:
     actor = get_parent() as CharacterBody3D
     var skin := Color(0.48, 0.27, 0.18) if actor.name == "Cynthia" else Color(0.72, 0.48, 0.32)
     var outfit := Color(0.68, 0.17, 0.48) if actor.name == "Cynthia" else Color(0.08, 0.55, 0.55)
+    clothing_color = outfit
     _part(self, Vector3(0, 1.05, 0), Vector3(0.48, 0.57, 0.26), outfit)
     _part(self, Vector3(0, 0.73, 0), Vector3(0.43, 0.2, 0.25), outfit.darkened(0.25))
     _part(self, Vector3(0, 1.43, 0), Vector3(0.14, 0.17, 0.14), skin)
@@ -62,5 +65,14 @@ func _part(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> void:
     mesh.size = size
     part.mesh = mesh
     part.position = pos
-    part.material_override = _material(color)
+    var material := _material(color)
+    part.material_override = material
+    if color == clothing_color or color == clothing_color.darkened(0.25):
+        material.set_meta("shade", 0.25 if color != clothing_color else 0.0)
+        clothing_materials.append(material)
     parent.add_child(part)
+
+func reskin(color: Color) -> void:
+    for material in clothing_materials:
+        var target := color.darkened(float(material.get_meta("shade", 0.0)))
+        create_tween().tween_property(material, "albedo_color", target, 0.7)
