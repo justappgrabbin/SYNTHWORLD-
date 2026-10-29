@@ -1,7 +1,9 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://Scripts/AI/Cynthia.gd" id="1"]
 [ext_resource type="Script" path="res://Scripts/AI/TraitComponent.gd" id="2"]
+
+[ext_resource type="Script" path="res://Scripts/AI/HumanBody.gd" id="human"]
 
 [sub_resource type="CapsuleShape3D" id="shape"]
 radius = 0.38
@@ -46,6 +48,7 @@ position = Vector3(0, 0.88, 0)
 shape = SubResource("shape")
 
 [node name="Look" type="Node3D" parent="."]
+visible = false
 
 [node name="Body" type="MeshInstance3D" parent="Look"]
 position = Vector3(0, 0.75, 0)
@@ -59,3 +62,6 @@ material_override = SubResource("skin_mat")
 
 [node name="Traits" type="Node" parent="."]
 script = ExtResource("2")
+
+[node name="HumanBody" type="Node3D" parent="."]
+script = ExtResource("human")

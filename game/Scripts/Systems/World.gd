@@ -6,8 +6,20 @@ const DUMMY_DAMAGE_INTERVAL:=3.0
 var _timer:=0.0
 var world_state:={"mood.harmony":0.7}
 func _ready()->void:
+    $Camera3D.position = Vector3(9, 13, 17)
+    $Camera3D.look_at(Vector3(0, 0.7, 0))
+    $Camera3D.projection = Camera3D.PROJECTION_ORTHOGONAL
+    $Camera3D.size = 18.0
+    $Sun.rotation_degrees = Vector3(-55, -25, 0)
+    for i in 10:
+        var angle := i * TAU / 10.0
+        place_tree(Vector3(cos(angle) * 9, 0, sin(angle) * 9))
     var agent:=AGENT_SCENE.instantiate();agent.name="Generator";add_child(agent);agent.global_position=Vector3(-3,0,0)
     place_tree(Vector3(5,0,5));call_deferred("_execute_seed_sentences")
+    var director := Node.new()
+    director.name = "SceneDirector"
+    director.set_script(preload("res://Scripts/Systems/SceneDirector.gd"))
+    call_deferred("add_child", director)
 func _process(delta:float)->void:
     _timer+=delta
     if _timer>=DUMMY_DAMAGE_INTERVAL:
@@ -30,3 +42,33 @@ func _get_random_prop():
     var c:=props_root.get_child_count()
     if c==0:return null
     return props_root.get_child(randi()%c)
+
+func configure_place(place: int) -> void:
+    var old = get_node_or_null("Furnishings")
+    if old:
+        remove_child(old)
+        old.queue_free()
+    var root := Node3D.new()
+    root.name = "Furnishings"
+    add_child(root)
+    if place == 0: return
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = Color(0.31, 0.18, 0.29)
+    var items := [[Vector3(0, 0.5, -2), Vector3(3, 1, 0.8)], [Vector3(0, 0.4, 1), Vector3(2, 0.8, 1.2)]]
+    if place == 2:
+        items = [[Vector3(-3, 0.4, -2), Vector3(2, 0.8, 0.8)], [Vector3(3, 0.4, -2), Vector3(2, 0.8, 0.8)], [Vector3(0, 0.5, 0), Vector3(1, 1, 1)]]
+    for item in items:
+        var body := StaticBody3D.new()
+        body.position = item[0]
+        root.add_child(body)
+        var mesh := MeshInstance3D.new()
+        var box := BoxMesh.new()
+        box.size = item[1]
+        mesh.mesh = box
+        mesh.material_override = mat
+        body.add_child(mesh)
+        var collider := CollisionShape3D.new()
+        var shape := BoxShape3D.new()
+        shape.size = item[1]
+        collider.shape = shape
+        body.add_child(collider)
